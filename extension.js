@@ -54,12 +54,17 @@ class Strip extends St.Widget {
 	this.locked = !this.locked;
     }
 
-    sync(y, monitor) {
-	this.set_position(monitor.x, y);
-        this.width = monitor.width;
-
-        if (this.name != 'sMiddle') {
+    sync(x, y, monitor) {
+        if (this.name === 'sVertical') {
+            this.set_position(x - this.width, monitor.y);
             this.height = monitor.height;
+        } else {
+	    this.set_position(monitor.x, y);
+            this.width = monitor.width;
+
+            if (this.name != 'sMiddle') {
+                this.height = monitor.height;
+            }
         }
     }
 
@@ -76,9 +81,13 @@ export default class ReadingStrip extends Extension {
 	const [x, y] = global.get_pointer();
 	
 	if (this.sMiddle.visible == true && this.sMiddle.locked == false) {
-	    this.sTop.sync(-currentMonitor.height + y - this.sMiddle.height / 2, currentMonitor);
-	    this.sMiddle.sync(y - this.sMiddle.height / 2, currentMonitor);
-	    this.sBottom.sync(y + this.sMiddle.height / 2, currentMonitor);
+             this.sTop.sync(x, -currentMonitor.height + y - this.sMiddle.height / 2, currentMonitor);
+             this.sMiddle.sync(x, y - this.sMiddle.height / 2, currentMonitor);
+             this.sBottom.sync(x, y + this.sMiddle.height / 2, currentMonitor);
+            
+            if (this.sVertical) {
+                this.sVertical.sync(x, y, currentMonitor);
+            }
 	}
     }
 
@@ -102,6 +111,7 @@ export default class ReadingStrip extends Extension {
               this._settings.get_boolean('focusmode');
 
         this.sTop.visible = this.sBottom.visible = focusVisible;
+        this.sVertical.visible = this.sMiddle.visible && this._settings.get_boolean('vertical');
 
         // update settings
         this._settings.set_boolean('enabled', this.sMiddle.visible);
@@ -132,6 +142,11 @@ export default class ReadingStrip extends Extension {
 	this.sTop.opacity = this.sBottom.opacity = 255 * 75/100;
 	this.sTop.style = this.sBottom.style = 'background-color : ' + this._settings.get_string('color-focus');
 
+        this.sVertical.visible = this.sMiddle.visible && this._settings.get_boolean('vertical');
+        this.sVertical.style = this.sMiddle.style;
+        this.sVertical.opacity = this.sMiddle.opacity;
+        this.sVertical.width = this.sMiddle.height / 4;
+        
 	this.refresh = this._settings.get_int('refresh');
         this.syncStrip();
     }
@@ -144,6 +159,7 @@ export default class ReadingStrip extends Extension {
 	this.sTop = new Strip('sTop');
 	this.sMiddle = new Strip('sMiddle');
 	this.sBottom = new Strip('sBottom');
+        this.sVertical = new Strip('sVertical');
 	
 	// add to top panel
 	this._icon_on = Gio.icon_new_for_string(`${this.path}/icons/readingstrip-on-symbolic.svg`);
@@ -213,6 +229,7 @@ export default class ReadingStrip extends Extension {
 	this.sTop.destroy();
 	this.sMiddle.destroy();
 	this.sBottom.destroy();
+        this.sVertical.destroy();
 
 	this._setting_changed_signal_ids.forEach(id => this._settings.disconnect(id));
 	this._setting_changed_signal_ids = [];
