@@ -23,7 +23,7 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import { getPointerWatcher } from "resource:///org/gnome/shell/ui/pointerWatcher.js";
+import GLib from 'gi://GLib';
 
 import {
   Extension,
@@ -115,19 +115,18 @@ export default class ReadingStrip extends Extension {
 
         // update settings
         this._settings.set_boolean('enabled', this.sMiddle.visible);
-
 	// add or remove pointer watcher
 	if (this.sMiddle.visible) {
             if (!this.pointerWatch) {
-                this.pointerWatcher = getPointerWatcher();
-	        this.pointerWatch = this.pointerWatcher.addWatch(
-		    this.refresh,
-		    this.syncStrip.bind(this)
-	        );
+                let interval = this.refresh > 0 ? this.refresh : 16;
+                this.pointerWatch = GLib.timeout_add(GLib.PRIORITY_DEFAULT, interval, () => {
+                    this.syncStrip();
+                    return GLib.SOURCE_CONTINUE;
+                });
             }
 	} else {
             if (this.pointerWatch) {
-	        this.pointerWatch.remove();
+	        GLib.Source.remove(this.pointerWatch);
 	        this.pointerWatch = null;
             }
 	}
@@ -153,9 +152,7 @@ export default class ReadingStrip extends Extension {
     
     enable() {
         this.pointerWatch = null;
-        this.pointerWatcher = null; 
-        
-	// add Stripes
+        	// add Stripes
 	this.sTop = new Strip('sTop');
 	this.sMiddle = new Strip('sMiddle');
 	this.sBottom = new Strip('sBottom');
@@ -234,12 +231,10 @@ export default class ReadingStrip extends Extension {
 	this._setting_changed_signal_ids.forEach(id => this._settings.disconnect(id));
 	this._setting_changed_signal_ids = [];
 	this._settings = null;
-
         if (this.pointerWatch){
-	    this.pointerWatch.remove();
+	    GLib.Source.remove(this.pointerWatch);
         }
 	this.pointerWatch = null;
-        this.pointerWatcher = null;
 	
 	this._icon = null;
 	this._icon_on = null;
